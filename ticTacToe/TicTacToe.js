@@ -17,11 +17,59 @@ boardElement.addEventListener('click', (event) => {
   // Trigger your turn logic here!
   handleCellClick(event.target, cellIndex);
 });
+let cells = [];
+for(let i=0; i<9; i++){
+  cells[i] = "";
+}
+let gameover = false;
+function checkWinner(){
+  if(cells[0]==cells[1] && cells[0]==cells[2] ||
+     cells[3]==cells[4] && cells[5]==cells[3] ||
+     cells[6]==cells[7] && cells[8]==cells[6] ||
+     cells[0]==cells[3] && cells[6]==cells[0] ||
+     cells[1]==cells[4] && cells[7]==cells[1] ||
+     cells[2]==cells[5] && cells[8]==cells[2] ||
+     cells[0]==cells[4] && cells[8]==cells[0] ||
+     cells[6]==cells[4] && cells[2]==cells[6]){
+      return true;
+     } else {
+      return false;
+     }
+}
+function checkDraw(){
+  for(let i=0; i<9; i++){
+    if(cells[i]===""){
+      return false;
+    }
+  }
+  return true;
+}
+let activePlayer = 'X';
+function isFull(cell){
+  if(cells[cell] === ""){
+    return false;
+  } else {
+    return true;
+  }
+}
+function nextPlayer(){
+  if(activePlayer == 'X'){
+    activePlayer = 'O';
+  } else {
+    activePlayer = 'X';
+  }
+}
 
 function handleCellClick(cellElement, index) {
-  // 1. Check if cell is already filled or game is over
-  // 2. Update your game state array
-  // 3. Update cell text (e.g., cellElement.textContent = currentPlayer)
-  // 4. Check for win or draw
-  // 5. Switch to the next player
+  if(gameover){return;}
+  if(isFull()){return;}
+  cells[index] = activePlayer;
+  cellElement.textContent = activePlayer;
+  if(checkWinner()){
+    window.alert(activePlayer + " wins!");
+  }
+  if(checkDraw()){
+    window.alert("It's a draw!");
+  }
+  nextPlayer();
 }
