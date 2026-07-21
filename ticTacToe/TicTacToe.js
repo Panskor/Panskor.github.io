@@ -1,6 +1,6 @@
+const boardElement = document.getElementById("ticTacToe");
 document.getElementById("playTicTacToe").onclick = function() {startGame()};
 function startGame() {
-  const boardElement = document.getElementById("ticTacToe");
   boardElement.classList.remove('hidden');
   for (let i = 0; i < 9; i++) {
   const cell = document.createElement('button');
@@ -23,14 +23,14 @@ for(let i=0; i<9; i++){
 }
 let gameover = false;
 function checkWinner(){
-  if(cells[0]==cells[1] && cells[0]==cells[2] ||
-     cells[3]==cells[4] && cells[5]==cells[3] ||
-     cells[6]==cells[7] && cells[8]==cells[6] ||
-     cells[0]==cells[3] && cells[6]==cells[0] ||
-     cells[1]==cells[4] && cells[7]==cells[1] ||
-     cells[2]==cells[5] && cells[8]==cells[2] ||
-     cells[0]==cells[4] && cells[8]==cells[0] ||
-     cells[6]==cells[4] && cells[2]==cells[6]){
+  if(cells[0]==cells[1] && cells[0]==cells[2] &&cells[0] != ""||
+     cells[3]==cells[4] && cells[5]==cells[3] &&cells[5] != ""||
+     cells[6]==cells[7] && cells[8]==cells[6] &&cells[8] != ""||
+     cells[0]==cells[3] && cells[6]==cells[0] &&cells[6] != ""||
+     cells[1]==cells[4] && cells[7]==cells[1] &&cells[7] != ""||
+     cells[2]==cells[5] && cells[8]==cells[2] &&cells[8] != ""||
+     cells[0]==cells[4] && cells[8]==cells[0] &&cells[8] != ""||
+     cells[6]==cells[4] && cells[2]==cells[6] &&cells[2] != ""){
       return true;
      } else {
       return false;
@@ -62,7 +62,7 @@ function nextPlayer(){
 
 function handleCellClick(cellElement, index) {
   if(gameover){return;}
-  if(isFull()){return;}
+  if(isFull(index)){return;}
   cells[index] = activePlayer;
   cellElement.textContent = activePlayer;
   if(checkWinner()){
