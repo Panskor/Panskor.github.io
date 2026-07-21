@@ -1,6 +1,7 @@
 document.getElementById("playTicTacToe").onclick = function() {startGame()};
 function startGame() {
   const boardElement = document.getElementById("ticTacToe");
+  boardElement.classList.remove('hidden');
   for (let i = 0; i < 9; i++) {
   const cell = document.createElement('button');
   cell.classList.add('cell');
