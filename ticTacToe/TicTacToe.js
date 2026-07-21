@@ -65,6 +65,11 @@ function handleCellClick(cellElement, index) {
   if(isFull(index)){return;}
   cells[index] = activePlayer;
   cellElement.textContent = activePlayer;
+  if (activePlayer === 'X') {
+    cellElement.classList.add('x-player');
+  } else {
+    cellElement.classList.add('o-player');
+  }
   if(checkWinner()){
     window.alert(activePlayer + " wins!");
   }

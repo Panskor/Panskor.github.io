@@ -40,3 +40,12 @@
 .cell:hover {
   background-color: #f0f0f0;
 }
+/* Styling for X */
+.cell.x-player {
+  color: #e74c3c; /* Red */
+}
+
+/* Styling for O */
+.cell.o-player {
+  color: #3498db; /* Blue */
+}
