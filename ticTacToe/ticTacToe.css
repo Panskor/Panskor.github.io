@@ -1,0 +1,38 @@
+/* Container using CSS Grid */
+#ticTacToe {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 10px;
+  
+  width: 300px;
+  height: 300px;
+  margin: 0 auto;
+  background-color: #333; /* Dark color shows through grid gaps */
+  border-radius: 8px;
+  padding: 10px;
+}
+
+/* Individual grid cells */
+.cell {
+  background-color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 3rem;
+  font-weight: bold;
+  cursor: pointer;
+  
+  /* Flexbox centers the X or O inside each cell */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  /* Prevents text selection highlight on quick double-clicks */
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+/* Hover feedback for empty cells */
+.cell:hover {
+  background-color: #f0f0f0;
+}
