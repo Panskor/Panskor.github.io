@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bridge Board Viewer & Lesson Suite</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Code+Pro:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Prevent board distortion with fixed aspect ratio / min sizes */
+        .bridge-table-container {
+            width: 100%;
+            max-width: 900px;
+            min-height: 520px;
+            aspect-ratio: 4/3;
+            position: relative;
+        }
+
+        /* Classic Felt Table Styling */
+        .felt-table {
+            background: radial-gradient(circle at center, #1b4d2e 0%, #0d2917 100%);
+            border: 12px solid #2d1810;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.6), 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        /* Suit Colors for Diagram Styling */
+        .suit-S, .suit-C { color: #0f172a; } /* Dark charcoal for black suits */
+        .suit-H, .suit-D { color: #dc2626; } /* Crimson red for red suits */
+
+        /* Card Button in Diagram */
+        .card-btn {
+            transition: all 0.15s ease;
+            font-family: 'Source Code Pro', monospace;
+            font-weight: 700;
+        }
+        .card-btn:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.08);
+            filter: brightness(1.15);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .card-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        /* Played card trick positioning */
+        .trick-slot {
+            transition: all 0.25s ease-out;
+        }
+
+        @keyframes shortBounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+        .animate-bounce-short {
+            animation: shortBounce 0.25s ease-out;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.8);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-900 text-slate-100">
+
+    <!-- Top Bar Header -->
+    <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex flex-wrap items-center justify-between shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="bg-emerald-600 text-white p-2 rounded-lg font-bold text-xl flex items-center justify-center w-10 h-10 shadow">
+                ♠
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight text-emerald-400">Bridge Master</h1>
+                <p class="text-xs text-slate-400">Interactive Board Viewer & Classroom</p>
+            </div>
+        </div>
+
+        <!-- Room & Role Controls Header -->
+        <div class="flex items-center space-x-3 my-1 sm:my-0">
+            <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center space-x-2 text-xs sm:text-sm">
+                <span class="text-slate-400">Room Code:</span>
+                <span id="display-room-code" class="font-mono font-bold text-amber-400">------</span>
+                <button id="copy-room-btn" title="Copy Room Code" class="hover:text-white text-slate-400 transition-colors ml-1">
+                    <i class="fa-regular fa-copy"></i>
+                </button>
+            </div>
+
+            <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center space-x-2 text-xs sm:text-sm">
+                <span class="text-slate-400">Role:</span>
+                <span id="display-role" class="font-semibold uppercase tracking-wider text-xs px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-700/50">
+                    Teacher
+                </span>
+                <button id="switch-role-btn" class="text-xs text-emerald-400 hover:underline ml-1">Change</button>
+            </div>
+
+            <button id="open-editor-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3 py-1.5 rounded-lg text-xs sm:text-sm shadow transition-colors flex items-center gap-1.5">
+                <i class="fa-solid fa-pen-to-square"></i> Board Editor
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col lg:flex-row p-4 gap-4 max-w-[1600px] mx-auto w-full">
+        
+        <!-- Left / Center: Interactive Felt Board -->
+        <section class="flex-1 flex flex-col items-center justify-center">
+            
+            <!-- Information Banner (Vulnerability, Dealer, Contract) -->
+            <div class="w-full max-w-[900px] bg-slate-800/90 border border-slate-700/80 rounded-t-xl p-3 flex flex-wrap items-center justify-between text-xs sm:text-sm gap-2">
+                <div class="flex items-center space-x-4">
+                    <div>
+                        <span class="text-slate-400">Board:</span>
+                        <span id="info-board-num" class="font-bold text-white ml-1">1</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Dealer:</span>
+                        <span id="info-dealer" class="font-bold text-amber-300 ml-1">North</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Vul:</span>
+                        <span id="info-vul" class="font-bold text-rose-400 ml-1">None</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <div class="bg-slate-900/90 px-3 py-1 rounded border border-slate-700">
+                        <span class="text-slate-400">Contract:</span>
+                        <span id="info-contract" class="font-bold text-emerald-400 ml-1">4♠ by South</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The Bridge Felt Table -->
+            <div class="bridge-table-container felt-table rounded-b-xl p-4 grid grid-cols-3 grid-rows-3 gap-2 relative shadow-2xl overflow-hidden">
+                
+                <!-- NORTH HAND (Grid Pos: Top Center) -->
+                <div class="col-start-2 row-start-1 bg-slate-900/85 backdrop-blur-md rounded-lg p-2.5 border border-emerald-500/30 shadow-lg flex flex-col justify-between max-h-[180px] overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-1 mb-1">
+                        <span class="font-bold text-xs uppercase tracking-wider text-emerald-300 flex items-center gap-1">
+                            <i class="fa-solid fa-compass"></i> North (Dummy)
+                        </span>
+                        <span id="count-N" class="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">13 cards</span>
+                    </div>
+                    <div id="hand-N" class="flex-1 flex flex-col justify-center space-y-0.5 text-xs">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- WEST HAND (Grid Pos: Middle Left) -->
+                <div class="col-start-1 row-start-2 bg-slate-900/85 backdrop-blur-md rounded-lg p-2.5 border border-emerald-500/30 shadow-lg flex flex-col justify-between max-h-[180px] overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-1 mb-1">
+                        <span class="font-bold text-xs uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                            West
+                        </span>
+                        <span id="count-W" class="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">13 cards</span>
+                    </div>
+                    <div id="hand-W" class="flex-1 flex flex-col justify-center space-y-0.5 text-xs">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- CENTER TRICK / BOARD DIAGRAM CENTER (Grid Pos: Middle Center) -->
+                <div class="col-start-2 row-start-2 bg-slate-950/70 border border-slate-700/60 rounded-xl p-2 relative flex flex-col items-center justify-center shadow-inner min-h-[160px]">
+                    <!-- Central Compass Watermark -->
+                    <div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none text-slate-100 font-bold text-6xl select-none">
+                        N
+                    </div>
+
+                    <!-- Trick Played Cards Diagram -->
+                    <div class="relative w-full h-full flex items-center justify-center">
+                        <!-- North Played Card -->
+                        <div id="trick-N" class="trick-slot absolute top-1 flex flex-col items-center"></div>
+                        <!-- South Played Card -->
+                        <div id="trick-S" class="trick-slot absolute bottom-1 flex flex-col items-center"></div>
+                        <!-- West Played Card -->
+                        <div id="trick-W" class="trick-slot absolute left-2 flex flex-col items-center"></div>
+                        <!-- East Played Card -->
+                        <div id="trick-E" class="trick-slot absolute right-2 flex flex-col items-center"></div>
+
+                        <!-- Center Status Text -->
+                        <div id="trick-status-text" class="text-center z-10 bg-slate-900/90 px-3 py-1.5 rounded-md border border-slate-700 text-xs text-slate-300 shadow-md max-w-[85%]">
+                            Any hand may lead
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EAST HAND (Grid Pos: Middle Right) -->
+                <div class="col-start-3 row-start-2 bg-slate-900/85 backdrop-blur-md rounded-lg p-2.5 border border-emerald-500/30 shadow-lg flex flex-col justify-between max-h-[180px] overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-1 mb-1">
+                        <span class="font-bold text-xs uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                            East
+                        </span>
+                        <span id="count-E" class="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">13 cards</span>
+                    </div>
+                    <div id="hand-E" class="flex-1 flex flex-col justify-center space-y-0.5 text-xs">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- SOUTH HAND (Grid Pos: Bottom Center) -->
+                <div class="col-start-2 row-start-3 bg-slate-900/85 backdrop-blur-md rounded-lg p-2.5 border border-emerald-500/30 shadow-lg flex flex-col justify-between max-h-[180px] overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-1 mb-1">
+                        <span class="font-bold text-xs uppercase tracking-wider text-emerald-300 flex items-center gap-1">
+                            <i class="fa-solid fa-compass"></i> South (Declarer)
+                        </span>
+                        <span id="count-S" class="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">13 cards</span>
+                    </div>
+                    <div id="hand-S" class="flex-1 flex flex-col justify-center space-y-0.5 text-xs">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Table Action Controls & Trick Score Bar -->
+            <div class="w-full max-w-[900px] flex flex-wrap items-center justify-between gap-3 bg-slate-800/90 p-3 rounded-b-xl border-t-0 border border-slate-700 mt-2">
+                <div class="flex items-center space-x-2">
+                    <button id="collect-trick-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-check-circle"></i> Resolve / Clear Trick
+                    </button>
+                    <button id="undo-card-btn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-rotate-left"></i> Undo Card
+                    </button>
+                    <button id="reset-board-btn" class="bg-slate-900 hover:bg-slate-950 text-rose-400 border border-rose-900/50 px-3 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reset Board
+                    </button>
+                </div>
+
+                <!-- Trick Score Summary -->
+                <div class="flex items-center space-x-3 text-xs bg-slate-900/90 px-3.5 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">Tricks Won:</span>
+                    <span class="text-emerald-400 font-bold">N/S: <span id="tricks-ns">0</span></span>
+                    <span class="text-slate-600">|</span>
+                    <span class="text-amber-400 font-bold">E/W: <span id="tricks-ew">0</span></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Sidebar: Saved Boards Library & Bidding/Notes -->
+        <aside class="w-full lg:w-80 flex flex-col gap-4">
+            
+            <!-- Saved Boards List -->
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col h-64 lg:h-72 shadow-md">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-2 mb-3">
+                    <h2 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open text-amber-400"></i> Board Library
+                    </h2>
+                    <span id="board-count-badge" class="text-xs bg-slate-700 px-2 py-0.5 rounded-full text-slate-300">0</span>
+                </div>
+                <div id="boards-list-container" class="flex-1 overflow-y-auto space-y-2 pr-1">
+                    <!-- Dynamic boards list loaded from state -->
+                    <p class="text-xs text-slate-500 italic text-center py-4">Loading saved boards...</p>
+                </div>
+            </div>
+
+            <!-- Bidding Box & Dealer Notes -->
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex-1 flex flex-col shadow-md min-h-[220px]">
+                <h2 class="font-bold text-sm text-slate-200 border-b border-slate-700 pb-2 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-list text-emerald-400"></i> Bidding & Lesson Notes
+                </h2>
+                
+                <div class="space-y-3 flex-1 flex flex-col text-xs">
+                    <div>
+                        <label class="text-slate-400 block mb-1 font-semibold">Bidding Auction History:</label>
+                        <div id="auction-history-display" class="bg-slate-900 border border-slate-700/70 rounded p-2 text-slate-300 font-mono text-xs whitespace-pre-wrap">
+                            No auction recorded.
+                        </div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col">
+                        <label class="text-slate-400 block mb-1 font-semibold">Teacher Notes / Commentary:</label>
+                        <div id="teacher-notes-display" class="bg-slate-900 border border-slate-700/70 rounded p-2.5 text-slate-300 flex-1 overflow-y-auto leading-relaxed max-h-[140px]">
+                            Select a board or create one to view lesson guidance.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- MODAL: Role Selection / Room Join -->
+    <div id="room-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div class="text-center space-y-1">
+                <div class="w-12 h-12 bg-emerald-600 rounded-xl mx-auto flex items-center justify-center text-2xl font-bold text-white shadow-lg mb-2">
+                    ♠
+                </div>
+                <h3 class="text-xl font-bold text-white">Bridge Classroom Room</h3>
+                <p class="text-xs text-slate-400">Join a shared room or start a new teaching session</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Room Code</label>
+                    <div class="flex space-x-2">
+                        <input type="text" id="input-room-code" maxlength="8" placeholder="e.g. BRIDGE1" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono uppercase focus:outline-none focus:border-emerald-500 text-sm">
+                        <button id="gen-room-btn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-2 rounded-lg transition">Random</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-2">Select Your Role</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="select-role-teacher" type="button" class="role-option-btn border-2 border-emerald-500 bg-emerald-950/40 text-white rounded-xl p-3 flex flex-col items-center space-y-1 transition">
+                            <i class="fa-solid fa-chalkboard-user text-emerald-400 text-xl"></i>
+                            <span class="font-bold text-sm">Teacher</span>
+                            <span class="text-[10px] text-slate-400 text-center">See & play all 4 hands</span>
+                        </button>
+                        <button id="select-role-student" type="button" class="role-option-btn border-2 border-slate-700 bg-slate-900/60 text-slate-300 rounded-xl p-3 flex flex-col items-center space-y-1 transition">
+                            <i class="fa-solid fa-user-graduate text-blue-400 text-xl"></i>
+                            <span class="font-bold text-sm">Student</span>
+                            <span class="text-[10px] text-slate-400 text-center">See/play N & S hands only</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <button id="confirm-room-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl text-sm shadow-lg transition">
+                    Enter Classroom
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Board Editor / Builder -->
+    <div id="editor-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh] space-y-4">
+            
+            <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-emerald-400"></i> Bridge Board Creator / Editor
+                </h3>
+                <button id="close-editor-btn" class="text-slate-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto space-y-4 pr-1 flex-1 text-xs sm:text-sm">
+                <!-- Meta information -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Board Title / Name</label>
+                        <input type="text" id="editor-title" placeholder="Board 1 - Opening Lead" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Dealer</label>
+                        <select id="editor-dealer" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white">
+                            <option value="North">North</option>
+                            <option value="East">East</option>
+                            <option value="South">South</option>
+                            <option value="West">West</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Vulnerability</label>
+                        <select id="editor-vul" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white">
+                            <option value="None">None</option>
+                            <option value="N-S">N-S</option>
+                            <option value="E-W">E-W</option>
+                            <option value="Both">Both</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Contract / Trump</label>
+                        <input type="text" id="editor-contract" placeholder="4♠ by South" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white">
+                    </div>
+                </div>
+
+                <!-- Hands Input (Format: AKJ.874.Q102.65) -->
+                <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700/80 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-amber-300">Hands Distribution (Spades.Hearts.Diamonds.Clubs)</span>
+                        <button id="editor-deal-random-btn" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-200">
+                            <i class="fa-solid fa-dice"></i> Deal Random 52 Cards
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono">
+                        <div>
+                            <label class="text-emerald-400 font-sans block mb-0.5">North Hand (S.H.D.C):</label>
+                            <input type="text" id="editor-hand-N" placeholder="AKJ9.Q104.872.A63" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+                        </div>
+                        <div>
+                            <label class="text-amber-400 font-sans block mb-0.5">East Hand (S.H.D.C):</label>
+                            <input type="text" id="editor-hand-E" placeholder="864.A32.KJ5.1098" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+                        </div>
+                        <div>
+                            <label class="text-emerald-400 font-sans block mb-0.5">South Hand (S.H.D.C):</label>
+                            <input type="text" id="editor-hand-S" placeholder="Q10752.K5.AQ4.K42" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+                        </div>
+                        <div>
+                            <label class="text-amber-400 font-sans block mb-0.5">West Hand (S.H.D.C):</label>
+                            <input type="text" id="editor-hand-W" placeholder="3.J9876.10963.Q75" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes / Auction History -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Bidding Auction Text</label>
+                        <textarea id="editor-auction" rows="3" placeholder="1S - Pass - 3S - Pass&#10;4S - Pass - Pass - Pass" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Lesson Notes & Analysis</label>
+                        <textarea id="editor-notes" rows="3" placeholder="Explain opening lead tactics or dummy play strategy..." class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between border-t border-slate-700 pt-3">
+                <span id="editor-error-msg" class="text-xs text-rose-400 font-medium"></span>
+                <div class="flex space-x-2">
+                    <button id="cancel-editor-btn" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-xs font-semibold">Cancel</button>
+                    <button id="save-board-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg text-xs font-semibold shadow">Save & Display Board</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Firebase SDK Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'bridge-board-viewer-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : { apiKey: "demo-key", authDomain: "demo.firebaseapp.com", projectId: "demo-app" };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Application State Constants
+        const SUITS = ['S', 'H', 'D', 'C'];
+        const SUIT_SYMBOLS = { 'S': '♠', 'H': '♥', 'D': '♦', 'C': '♣' };
+        const POSITIONS = ['N', 'E', 'S', 'W'];
+        const CARD_RANKS = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
+        const RANK_VALUES = { 'A': 14, 'K': 13, 'Q': 12, 'J': 11, '10': 10, '9': 9, '8': 8, '7': 7, '6': 6, '5': 5, '4': 4, '3': 3, '2': 2 };
+
+        let currentUserRole = 'Teacher'; // 'Teacher' or 'Student'
+        let currentRoomCode = 'DEMO1';
+        let isFirestoreConnected = false;
+        let autoCompleteTimer = null;
+
+        // Active state of current room board
+        let roomState = {
+            boardMeta: {
+                id: 'default-board-1',
+                title: 'Lesson 1: Finesse Technique',
+                dealer: 'North',
+                vulnerability: 'None',
+                contract: '4♠ by South',
+                auction: '1♠ - Pass - 3♠ - Pass\n4♠ - Pass - Pass - Pass',
+                notes: 'North is the dummy. South plays 4 Spades. Lead West\'s King of Hearts. Plan how to handle the Diamond suit.'
+            },
+            hands: {
+                'N': parsePbnSuitString('AKJ9.Q104.872.A63'),
+                'E': parsePbnSuitString('864.A32.KJ5.1098'),
+                'S': parsePbnSuitString('Q10752.K5.AQ4.K42'),
+                'W': parsePbnSuitString('3.J9876.10963.Q75')
+            },
+            playedTricks: [],
+            currentTrick: {},
+            trickLeader: 'W',
+            tricksNS: 0,
+            tricksEW: 0
+        };
+
+        let savedBoards = [
+            {
+                id: 'default-board-1',
+                title: 'Lesson 1: Finesse Technique',
+                dealer: 'North',
+                vulnerability: 'None',
+                contract: '4♠ by South',
+                auction: '1♠ - Pass - 3♠ - Pass\n4♠ - Pass - Pass - Pass',
+                notes: 'North is dummy. South plays 4 Spades. Lead West\'s King of Hearts.',
+                hands: {
+                    'N': parsePbnSuitString('AKJ9.Q104.872.A63'),
+                    'E': parsePbnSuitString('864.A32.KJ5.1098'),
+                    'S': parsePbnSuitString('Q10752.K5.AQ4.K42'),
+                    'W': parsePbnSuitString('3.J9876.10963.Q75')
+                }
+            },
+            {
+                id: 'default-board-2',
+                title: 'Lesson 2: Suit Establishment',
+                dealer: 'East',
+                vulnerability: 'N-S',
+                contract: '3NT by South',
+                auction: '1NT - Pass - 3NT - All Pass',
+                notes: 'Establish the long Heart suit in Dummy before losing entry to North.',
+                hands: {
+                    'N': parsePbnSuitString('A5.KQJ104.872.643'),
+                    'E': parsePbnSuitString('J982.72.QJ109.AQ2'),
+                    'S': parsePbnSuitString('KQ3.A63.A654.K95'),
+                    'W': parsePbnSuitString('10764.985.K3.J1087')
+                }
+            }
+        ];
+
+        function setText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
+
+        function setHTML(id, html) {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        }
+
+        function parsePbnSuitString(pbn) {
+            const parts = pbn.split('.');
+            const hand = [];
+            
+            SUITS.forEach((suit, idx) => {
+                const ranksStr = parts[idx] || '';
+                let i = 0;
+                while (i < ranksStr.length) {
+                    let rank = ranksStr[i];
+                    if (rank === '1' && ranksStr[i+1] === '0') {
+                        rank = '10';
+                        i++;
+                    }
+                    if (CARD_RANKS.includes(rank)) {
+                        hand.push({ suit, rank });
+                    }
+                    i++;
+                }
+            });
+            return hand;
+        }
+
+        function handToPbnString(hand) {
+            const suitRanks = { 'S': [], 'H': [], 'D': [], 'C': [] };
+            hand.forEach(c => suitRanks[c.suit].push(c.rank));
+            return SUITS.map(s => suitRanks[s].join('')).join('.');
+        }
+
+        async function initAuthAndFirebase() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                isFirestoreConnected = true;
+                subscribeToRoomUpdates();
+            } catch (e) {
+                console.warn("Firestore connection fallback to local sync mode:", e);
+                isFirestoreConnected = false;
+                renderUI();
+            }
+        }
+
+        function subscribeToRoomUpdates() {
+            if (!isFirestoreConnected || !auth.currentUser) return;
+
+            const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomCode);
+
+            onSnapshot(roomDocRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    if (data.roomState) {
+                        roomState = data.roomState;
+                        renderUI();
+                    }
+                } else {
+                    saveRoomStateToFirestore();
+                }
+            }, (error) => {
+                console.error("Firestore sync error:", error);
+            });
+        }
+
+        async function saveRoomStateToFirestore() {
+            if (!isFirestoreConnected || !auth.currentUser) return;
+            try {
+                const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomCode);
+                await setDoc(roomDocRef, { roomState, lastUpdated: Date.now() }, { merge: true });
+            } catch (err) {
+                console.error("Error saving room state:", err);
+            }
+        }
+
+        function renderUI() {
+            setText('display-room-code', currentRoomCode);
+            
+            const roleBadge = document.getElementById('display-role');
+            if (roleBadge) {
+                roleBadge.textContent = currentUserRole;
+                if (currentUserRole === 'Teacher') {
+                    roleBadge.className = "font-semibold uppercase tracking-wider text-xs px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-700/50";
+                } else {
+                    roleBadge.className = "font-semibold uppercase tracking-wider text-xs px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-300 border border-emerald-700/50";
+                }
+            }
+
+            // Board Banner
+            setText('info-board-num', roomState.boardMeta.title || '1');
+            setText('info-dealer', roomState.boardMeta.dealer || 'North');
+            setText('info-vul', roomState.boardMeta.vulnerability || 'None');
+            setText('info-contract', roomState.boardMeta.contract || '-');
+
+            // Sidebar Details
+            setText('auction-history-display', roomState.boardMeta.auction || 'No auction recorded.');
+            setText('teacher-notes-display', roomState.boardMeta.notes || 'No teacher notes provided.');
+
+            // Render Hands
+            POSITIONS.forEach(pos => renderHandDiagram(pos));
+
+            // Render Center Trick Area
+            renderTrickCenter();
+
+            // Render Trick Scores
+            setText('tricks-ns', roomState.tricksNS);
+            setText('tricks-ew', roomState.tricksEW);
+
+            // Render Saved Boards List
+            renderSavedBoardsList();
+        }
+
+        function renderHandDiagram(pos) {
+            const container = document.getElementById(`hand-${pos}`);
+            if (!container) return;
+
+            const hand = roomState.hands[pos] || [];
+            setText(`count-${pos}`, `${hand.length} card${hand.length === 1 ? '' : 's'}`);
+            container.innerHTML = '';
+
+            // Teacher sees all hands. Student sees North and South only.
+            const isVisible = (currentUserRole === 'Teacher') || (pos === 'N' || pos === 'S');
+
+            if (!isVisible) {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-slate-500 py-3">
+                        <i class="fa-solid fa-eye-slash text-xl mb-1 opacity-50"></i>
+                        <span class="text-[10px] font-medium">Concealed (Opponent)</span>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group cards by suit for diagram rendering
+            SUITS.forEach(suit => {
+                const suitCards = hand.filter(c => c.suit === suit)
+                                     .sort((a,b) => RANK_VALUES[b.rank] - RANK_VALUES[a.rank]);
+
+                const suitRow = document.createElement('div');
+                suitRow.className = "flex items-center space-x-1.5 leading-none py-0.5";
+
+                const suitSymbolSpan = document.createElement('span');
+                suitSymbolSpan.className = `suit-${suit} font-bold text-sm w-4 select-none`;
+                suitSymbolSpan.textContent = SUIT_SYMBOLS[suit];
+                suitRow.appendChild(suitSymbolSpan);
+
+                const ranksContainer = document.createElement('div');
+                ranksContainer.className = "flex flex-wrap gap-1 items-center flex-1";
+
+                if (suitCards.length === 0) {
+                    const voidSpan = document.createElement('span');
+                    voidSpan.className = "text-slate-500 font-mono text-xs italic";
+                    voidSpan.textContent = "—";
+                    ranksContainer.appendChild(voidSpan);
+                } else {
+                    suitCards.forEach(card => {
+                        const btn = document.createElement('button');
+                        btn.className = `card-btn suit-${card.suit} bg-slate-100 hover:bg-white text-slate-900 px-1.5 py-0.5 rounded text-xs shadow-sm border border-slate-300`;
+                        btn.textContent = card.rank;
+                        
+                        const isPlayed = roomState.currentTrick[pos];
+                        if (isPlayed) {
+                            btn.disabled = true;
+                        } else {
+                            btn.onclick = () => playCard(pos, card);
+                        }
+
+                        ranksContainer.appendChild(btn);
+                    });
+                }
+
+                suitRow.appendChild(ranksContainer);
+                container.appendChild(suitRow);
+            });
+        }
+
+        function renderTrickCenter() {
+            POSITIONS.forEach(pos => {
+                const slot = document.getElementById(`trick-${pos}`);
+                if (!slot) return;
+                slot.innerHTML = '';
+
+                const playedCard = roomState.currentTrick[pos];
+                if (playedCard) {
+                    const cardBox = document.createElement('div');
+                    cardBox.className = `bg-slate-100 border-2 border-amber-400 rounded-lg px-2 py-1 shadow-xl flex items-center space-x-1 animate-bounce-short`;
+                    cardBox.innerHTML = `
+                        <span class="suit-${playedCard.suit} text-sm font-bold select-none">${SUIT_SYMBOLS[playedCard.suit]}</span>
+                        <span class="font-mono font-extrabold text-slate-900 text-xs">${playedCard.rank}</span>
+                    `;
+                    slot.appendChild(cardBox);
+                }
+            });
+
+            const trickCount = Object.keys(roomState.currentTrick).length;
+            const statusEl = document.getElementById('trick-status-text');
+
+            if (statusEl) {
+                if (trickCount === 0) {
+                    statusEl.textContent = "Any hand may lead to trick";
+                } else if (trickCount < 4) {
+                    statusEl.textContent = `${trickCount} of 4 cards played`;
+                } else {
+                    statusEl.innerHTML = `<span class="text-emerald-400 font-bold">Trick Complete</span>`;
+                }
+            }
+        }
+
+        function playCard(pos, card) {
+            if (autoCompleteTimer) {
+                clearTimeout(autoCompleteTimer);
+                autoCompleteTimer = null;
+            }
+
+            // Auto-complete previous trick if 4 cards are already on the table
+            if (Object.keys(roomState.currentTrick).length === 4) {
+                completeTrick();
+            }
+
+            const hand = roomState.hands[pos];
+            const cardIdx = hand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+            
+            if (cardIdx > -1) {
+                // If this is the first card of the trick, set this position as trick leader
+                if (Object.keys(roomState.currentTrick).length === 0) {
+                    roomState.trickLeader = pos;
+                }
+
+                hand.splice(cardIdx, 1);
+                roomState.currentTrick[pos] = card;
+                
+                saveRoomStateToFirestore();
+                renderUI();
+
+                // Automatically resolve trick after 4 cards are played with a brief pause
+                if (Object.keys(roomState.currentTrick).length === 4) {
+                    autoCompleteTimer = setTimeout(() => {
+                        autoCompleteTimer = null;
+                        if (Object.keys(roomState.currentTrick).length === 4) {
+                            completeTrick();
+                        }
+                    }, 1200);
+                }
+            }
+        }
+
+        function completeTrick() {
+            if (autoCompleteTimer) {
+                clearTimeout(autoCompleteTimer);
+                autoCompleteTimer = null;
+            }
+
+            const playedKeys = Object.keys(roomState.currentTrick);
+            if (playedKeys.length < 4) return;
+
+            const leaderPos = roomState.trickLeader || playedKeys[0];
+            const leadCard = roomState.currentTrick[leaderPos] || roomState.currentTrick[playedKeys[0]];
+            const leadSuit = leadCard.suit;
+
+            let winningPos = leaderPos;
+            let winningRankVal = RANK_VALUES[leadCard.rank];
+
+            POSITIONS.forEach(pos => {
+                const card = roomState.currentTrick[pos];
+                if (card && card.suit === leadSuit) {
+                    if (RANK_VALUES[card.rank] > winningRankVal) {
+                        winningRankVal = RANK_VALUES[card.rank];
+                        winningPos = pos;
+                    }
+                }
+            });
+
+            roomState.playedTricks.push({
+                trick: { ...roomState.currentTrick },
+                winner: winningPos,
+                leader: leaderPos
+            });
+
+            if (winningPos === 'N' || winningPos === 'S') {
+                roomState.tricksNS += 1;
+            } else {
+                roomState.tricksEW += 1;
+            }
+
+            roomState.trickLeader = winningPos;
+            roomState.currentTrick = {};
+
+            saveRoomStateToFirestore();
+            renderUI();
+        }
+
+        function undoLastCard() {
+            if (autoCompleteTimer) {
+                clearTimeout(autoCompleteTimer);
+                autoCompleteTimer = null;
+            }
+
+            const playedKeys = Object.keys(roomState.currentTrick);
+            if (playedKeys.length === 0) {
+                if (roomState.playedTricks.length > 0) {
+                    const lastTrickData = roomState.playedTricks.pop();
+                    roomState.currentTrick = lastTrickData.trick;
+                    roomState.trickLeader = lastTrickData.leader;
+                    
+                    if (lastTrickData.winner === 'N' || lastTrickData.winner === 'S') {
+                        roomState.tricksNS = Math.max(0, roomState.tricksNS - 1);
+                    } else {
+                        roomState.tricksEW = Math.max(0, roomState.tricksEW - 1);
+                    }
+                } else {
+                    return;
+                }
+            } else {
+                const lastPos = playedKeys[playedKeys.length - 1];
+                const card = roomState.currentTrick[lastPos];
+                delete roomState.currentTrick[lastPos];
+                roomState.hands[lastPos].push(card);
+            }
+
+            saveRoomStateToFirestore();
+            renderUI();
+        }
+
+        function resetBoardPlay() {
+            if (autoCompleteTimer) {
+                clearTimeout(autoCompleteTimer);
+                autoCompleteTimer = null;
+            }
+
+            const targetBoard = savedBoards.find(b => b.id === roomState.boardMeta.id) || savedBoards[0];
+            
+            roomState.hands = {
+                'N': [...targetBoard.hands.N],
+                'E': [...targetBoard.hands.E],
+                'S': [...targetBoard.hands.S],
+                'W': [...targetBoard.hands.W]
+            };
+
+            roomState.currentTrick = {};
+            roomState.playedTricks = [];
+            roomState.tricksNS = 0;
+            roomState.tricksEW = 0;
+            roomState.trickLeader = 'W';
+
+            saveRoomStateToFirestore();
+            renderUI();
+        }
+
+        function renderSavedBoardsList() {
+            const container = document.getElementById('boards-list-container');
+            if (!container) return;
+
+            setText('board-count-badge', savedBoards.length);
+            container.innerHTML = '';
+
+            savedBoards.forEach((b, idx) => {
+                const item = document.createElement('div');
+                const isActive = b.id === roomState.boardMeta.id;
+                
+                item.className = `p-2.5 rounded-lg border text-xs cursor-pointer transition flex items-center justify-between ${
+                    isActive 
+                    ? 'bg-emerald-950/60 border-emerald-500/80 text-emerald-200' 
+                    : 'bg-slate-900 border-slate-700 hover:bg-slate-700/60 text-slate-300'
+                }`;
+
+                item.innerHTML = `
+                    <div class="truncate flex-1 mr-2">
+                        <div class="font-bold truncate text-slate-100">${b.title || `Board ${idx+1}`}</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Dealer: ${b.dealer} | Contract: ${b.contract}</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+                `;
+
+                item.onclick = () => loadBoardIntoRoom(b);
+                container.appendChild(item);
+            });
+        }
+
+        function loadBoardIntoRoom(board) {
+            roomState.boardMeta = {
+                id: board.id,
+                title: board.title,
+                dealer: board.dealer,
+                vulnerability: board.vulnerability,
+                contract: board.contract,
+                auction: board.auction,
+                notes: board.notes
+            };
+
+            roomState.hands = {
+                'N': [...board.hands.N],
+                'E': [...board.hands.E],
+                'S': [...board.hands.S],
+                'W': [...board.hands.W]
+            };
+
+            roomState.currentTrick = {};
+            roomState.playedTricks = [];
+            roomState.tricksNS = 0;
+            roomState.tricksEW = 0;
+            
+            const leaderMap = { North: 'E', East: 'S', South: 'W', West: 'N' };
+            roomState.trickLeader = leaderMap[board.dealer] || 'W';
+
+            saveRoomStateToFirestore();
+            renderUI();
+        }
+
+        function dealRandom52Cards() {
+            const deck = [];
+            SUITS.forEach(suit => {
+                CARD_RANKS.forEach(rank => {
+                    deck.push({ suit, rank });
+                });
+            });
+
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+
+            const N = deck.slice(0, 13);
+            const E = deck.slice(13, 26);
+            const S = deck.slice(26, 39);
+            const W = deck.slice(39, 52);
+
+            const nInput = document.getElementById('editor-hand-N');
+            const eInput = document.getElementById('editor-hand-E');
+            const sInput = document.getElementById('editor-hand-S');
+            const wInput = document.getElementById('editor-hand-W');
+
+            if (nInput) nInput.value = handToPbnString(N);
+            if (eInput) eInput.value = handToPbnString(E);
+            if (sInput) sInput.value = handToPbnString(S);
+            if (wInput) wInput.value = handToPbnString(W);
+        }
+
+        function saveEditorBoard() {
+            const title = document.getElementById('editor-title')?.value || 'Custom Board';
+            const dealer = document.getElementById('editor-dealer')?.value || 'North';
+            const vul = document.getElementById('editor-vul')?.value || 'None';
+            const contract = document.getElementById('editor-contract')?.value || 'Pass';
+            const auction = document.getElementById('editor-auction')?.value || '';
+            const notes = document.getElementById('editor-notes')?.value || '';
+
+            const nStr = document.getElementById('editor-hand-N')?.value || '';
+            const eStr = document.getElementById('editor-hand-E')?.value || '';
+            const sStr = document.getElementById('editor-hand-S')?.value || '';
+            const wStr = document.getElementById('editor-hand-W')?.value || '';
+
+            const nHand = parsePbnSuitString(nStr);
+            const eHand = parsePbnSuitString(eStr);
+            const sHand = parsePbnSuitString(sStr);
+            const wHand = parsePbnSuitString(wStr);
+
+            const total = nHand.length + eHand.length + sHand.length + wHand.length;
+
+            if (total !== 52) {
+                setText('editor-error-msg', `Error: Hands must contain 52 cards total (Currently: ${total}). Format e.g., "AKJ9.Q104.872.A63"`);
+                return;
+            }
+
+            setText('editor-error-msg', '');
+
+            const newBoard = {
+                id: 'board-' + Date.now(),
+                title,
+                dealer,
+                vulnerability: vul,
+                contract,
+                auction,
+                notes,
+                hands: { N: nHand, E: eHand, S: sHand, W: wHand }
+            };
+
+            savedBoards.unshift(newBoard);
+            loadBoardIntoRoom(newBoard);
+
+            const editorModal = document.getElementById('editor-modal');
+            if (editorModal) editorModal.classList.add('hidden');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initAuthAndFirebase();
+
+            // Role selection handlers
+            const roomModal = document.getElementById('room-modal');
+            const roleTeacherBtn = document.getElementById('select-role-teacher');
+            const roleStudentBtn = document.getElementById('select-role-student');
+            
+            if (roleTeacherBtn && roleStudentBtn) {
+                roleTeacherBtn.onclick = () => {
+                    currentUserRole = 'Teacher';
+                    roleTeacherBtn.className = "role-option-btn border-2 border-emerald-500 bg-emerald-950/40 text-white rounded-xl p-3 flex flex-col items-center space-y-1 transition";
+                    roleStudentBtn.className = "role-option-btn border-2 border-slate-700 bg-slate-900/60 text-slate-300 rounded-xl p-3 flex flex-col items-center space-y-1 transition";
+                };
+
+                roleStudentBtn.onclick = () => {
+                    currentUserRole = 'Student';
+                    roleStudentBtn.className = "role-option-btn border-2 border-emerald-500 bg-emerald-950/40 text-white rounded-xl p-3 flex flex-col items-center space-y-1 transition";
+                    roleTeacherBtn.className = "role-option-btn border-2 border-slate-700 bg-slate-900/60 text-slate-300 rounded-xl p-3 flex flex-col items-center space-y-1 transition";
+                };
+            }
+
+            const genRoomBtn = document.getElementById('gen-room-btn');
+            if (genRoomBtn) {
+                genRoomBtn.onclick = () => {
+                    const code = 'ROOM' + Math.floor(1000 + Math.random() * 9000);
+                    const inputEl = document.getElementById('input-room-code');
+                    if (inputEl) inputEl.value = code;
+                };
+            }
+
+            const confirmRoomBtn = document.getElementById('confirm-room-btn');
+            if (confirmRoomBtn) {
+                confirmRoomBtn.onclick = () => {
+                    const codeInput = document.getElementById('input-room-code')?.value.trim();
+                    if (codeInput) {
+                        currentRoomCode = codeInput.toUpperCase();
+                    }
+                    if (roomModal) roomModal.classList.add('hidden');
+                    subscribeToRoomUpdates();
+                    renderUI();
+                };
+            }
+
+            const switchRoleBtn = document.getElementById('switch-role-btn');
+            if (switchRoleBtn) {
+                switchRoleBtn.onclick = () => {
+                    if (roomModal) roomModal.classList.remove('hidden');
+                };
+            }
+
+            const copyRoomBtn = document.getElementById('copy-room-btn');
+            if (copyRoomBtn) {
+                copyRoomBtn.onclick = () => {
+                    try {
+                        const tempInput = document.createElement("input");
+                        tempInput.value = currentRoomCode;
+                        document.body.appendChild(tempInput);
+                        tempInput.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(tempInput);
+                    } catch (e) {
+                        console.log("Copy fallback");
+                    }
+                };
+            }
+
+            // Button controls
+            const collectBtn = document.getElementById('collect-trick-btn');
+            if (collectBtn) collectBtn.onclick = completeTrick;
+
+            const undoBtn = document.getElementById('undo-card-btn');
+            if (undoBtn) undoBtn.onclick = undoLastCard;
+
+            const resetBtn = document.getElementById('reset-board-btn');
+            if (resetBtn) resetBtn.onclick = resetBoardPlay;
+
+            // Editor Modal bindings
+            const editorModal = document.getElementById('editor-modal');
+            const openEditorBtn = document.getElementById('open-editor-btn');
+            if (openEditorBtn) {
+                openEditorBtn.onclick = () => {
+                    dealRandom52Cards();
+                    if (editorModal) editorModal.classList.remove('hidden');
+                };
+            }
+
+            const closeEditorBtn = document.getElementById('close-editor-btn');
+            if (closeEditorBtn) closeEditorBtn.onclick = () => editorModal?.classList.add('hidden');
+
+            const cancelEditorBtn = document.getElementById('cancel-editor-btn');
+            if (cancelEditorBtn) cancelEditorBtn.onclick = () => editorModal?.classList.add('hidden');
+
+            const dealRandomBtn = document.getElementById('editor-deal-random-btn');
+            if (dealRandomBtn) dealRandomBtn.onclick = dealRandom52Cards;
+
+            const saveBoardBtn = document.getElementById('save-board-btn');
+            if (saveBoardBtn) saveBoardBtn.onclick = saveEditorBoard;
+
+            renderUI();
+        });
+    </script>
+</body>
+</html>
